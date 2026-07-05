@@ -1,4 +1,4 @@
-# Immo_Webscraping
+# Immo_Webscraper: Ein automatisierter Webscraper für ImmobilienScout24 unter Nutzung von Pythons Selenium
 Schreibt einen auf Pythons Selenium basierenden Bot, um Daten zu zum Verkauf stehenden Häusern von [ImmobilienScout24](https://www.immobilienscout24.de/) zu sammeln. Es sei darauf hingewiesen, dass der Code nur zur Veranschaulichung dient und nicht aktiv genutzt werden sollte, da der Webseiten-Betreiber Richtlinien gegen Webscraping haben könnte.
 
 ## Grundlage
@@ -187,7 +187,16 @@ def sammle_veroeffentlichungsdatum(driver):
     try:
         return driver.find_elements(By.XPATH, '//div[contains(@class, "premium-stats-item grid-item")]')[1].text
     except:
-        return 'nan'    
+        return 'nan'
+def neubau_sammler(page_card):
+    try:
+        return page_card.find_element(By.XPATH, './/div[@class = "indicator indicator--brand-white indicator--elevation"]').text
+    except:
+        return 'nan'
+def sammle_neubau_bestand(driver):
+    page_results = driver.find_element(By.XPATH, "//div[@data-elementtype = 'hybridViewCardContainer']")
+    page_cards = page_results.find_elements(By.XPATH, ".//div[contains(@class, 'listing-card card-listing-')]")
+    return [neubau_sammler(card) for card in page_cards]
 def sammle_seiteninformationen(driver, url):
     return pd.DataFrame({
             'Titel': [sammle_expose_titel(driver)],
@@ -217,6 +226,7 @@ def sammle_seiteninformationen(driver, url):
             'Text_Ausstattung': [sammle_text_ausstattung(driver)],
             'Text_Lage': [sammle_text_lage(driver)],            
             'URL': [url],
+            'Bauprojekt': [bauprojekt],
             'Veroeffentlichungsdatum': [sammle_veroeffentlichungsdatum(driver)],
             'Download_Zeit': [datetime.now().strftime("%y-%m-%d %H:%M")]
         })
@@ -231,14 +241,15 @@ def sammle_SuchURLs(driver):
 # detaillierten Objektinformationen zu dem data frame hinzu
 def fuege_suchseiteninfos_hinzu(driver, df):
     URLs = sammle_SuchURLs(driver)
-    for URL in URLs:
+    Bauprojekte = sammle_neubau_bestand(driver)
+    for URL, Bauprojekt in zip(URLs, Bauprojekte):
         try:
             driver.get(URL)
             time.sleep(1 + unif(1, 2))
             element = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.XPATH, '//dd[contains(@class, "is24qa-kaufpreis grid-item")]'))
             )    # Als Indikator, um zu warten, bis Element geladen ist
-            new_row = sammle_seiteninformationen(driver, URL)
+            new_row = sammle_seiteninformationen(driver, URL, Bauprojekt)
             df = pd.concat([df, new_row], ignore_index = True).drop_duplicates(
                 subset = ['Titel', 'Adresse', 'Kaufpreis_Gesamt', 'Kaufpreis_pro_QM', 'Wohnflaeche_in_QM',
                        'Grundstuecksflaeche_in_QM', 'Keller_existiert', 'Anzahl_Zimmer',
@@ -277,7 +288,7 @@ df = pd.DataFrame(columns = ['Titel', 'Adresse', 'Kaufpreis_Gesamt', 'Kaufpreis_
        'Heizungsart', 'Wesentliche_Energietraeger',
        'Energieausweis_vorliegend', 'Typ_Energieausweis', 'Endenergiebedarf',
        'Energieklasse', 'Text_Objektbeschreibung', 'Text_Ausstattung',
-       'Text_Lage', 'URL', 'Veroeffentlichungsdatum', 'Download_Zeit'])
+       'Text_Lage', 'URL', 'Bauprojekt', 'Veroeffentlichungsdatum', 'Download_Zeit'])
 
 # Fülle den Dataframe
 i = 0
