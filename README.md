@@ -99,10 +99,10 @@ def sammle_haustyp(driver):
         return driver.find_element(By.XPATH, '//dd[contains(@class, "is24qa-typ grid-item")]').text
     except:
         return 'nan'
-# Marklerprovision
-def sammle_marklerprovision(driver):
+# Maklerprovision
+def sammle_maklerprovision(driver):
     try:
-        return driver.find_element(By.XPATH, '//dd[contains(@class, "is24qa-provision grid-item")]').text.split(' %')[0] + '%'
+        return driver.find_element(By.XPATH, '//dd[contains(@class, "is24qa-provision grid-item")]').text
     except:
         return 'nan'
 # Baujahr des Hauses
@@ -212,7 +212,7 @@ def sammle_seiteninformationen(driver, url):
             'Anzahl_Etagen': [sammle_anzahl_etagen(driver)],
             'Anzahl_Autostellplaetze': [sammle_anzahl_garage(driver)],
             'Haustyp': [sammle_haustyp(driver)],
-            'Maklerprovision': [sammle_marklerprovision(driver)],
+            'Maklerprovision': [sammle_maklerprovision(driver)],
             'Baujahr': [sammle_baujahr(driver)],
             'Objektzustand': [sammle_objektzustand(driver)],
             'Ausstattungsqualitaet': [sammle_quali_ausstattung(driver)],
