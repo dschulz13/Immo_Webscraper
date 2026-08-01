@@ -22,6 +22,8 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 ### Hilfsfunktionen
 
+Dies sind Hilfsfunktionen, um die einzelnen Größen von der Immobilienwebseite abzufangen und zu speichern. Globale Listen werden anhand dieser aktualisiert. Eine weitere Hiulfsfunktion startet den Browser neu, was hilfreich sein kann, um Timeouts zu vermeiden.
+
 ```
 # Kaufpreis gesamt
 def sammle_kaufpreis(page, inp_list):
@@ -205,12 +207,13 @@ def sammle_expose_titel(page, inp_list):
     else:
         print('nan')
         inp_list.append('nan')
+# Veröffentlichungsdatum
 def sammle_veroeffentlichungsdatum(page, inp_list):
     if page.locator('xpath=//div[contains(@class, "premium-stats-item grid-item")]').count() > 0:
         inp_list.append(page.locator('xpath=//div[contains(@class, "premium-stats-item grid-item")]').nth(1).inner_text())
     else:
         inp_list.append('nan')
-
+# Sammle und aktualisiere alle Größen
 def sammle_alle_groessen(page, titel, adresse, kaufpreis_gesamt, kaufpreis_pro_qm,
                          wohnflaeche_in_qm, grundstuecksflaeche_in_qm,
                          keller_existiert, anzahl_zimmer, anzahl_badezimmer,
@@ -258,7 +261,7 @@ def neubau_ind(page_card):
         return True
     else:
         return False
-
+# Sammle Neubauprojekt-Indikator und gegenteiligen Indikator
 def sammle_SuchURLs_Einzelobjekt(page, url_sammlung, neubau_sammlung):
     page_results = page.locator("xpath=//div[@data-elementtype = 'hybridViewCardContainer']")
     page_cards = page_results.locator("xpath=.//div[contains(@class, 'listing-card card-listing-') and not(contains(@class, 'stacked-cards'))]")
@@ -279,9 +282,31 @@ def sammle_SuchURLs_Mehrprojekte(page, url_sammlung, neubau_sammlung):
     url_sammlung.append(url_new)
     neubau_sammlung.append(['hausbau'] * len(url_new))
 
+# Sammle die gesammelten Such-URLs
 def sammle_SuchURLs(page, url_sammlung, neubau_sammlung):
     sammle_SuchURLs_Einzelobjekt(page, url_sammlung, neubau_sammlung)
     sammle_SuchURLs_Mehrprojekte(page, url_sammlung, neubau_sammlung)
+
+# Starte Browser neu
+def neustart_browser(page, base_url, pw, sb):
+    page.close()
+    sb.sleep(60)
+    # Restart browser to avoid timeout
+    sb = sb_cdp.Chrome()
+    endpoint_url = sb.get_endpoint_url()
+    browser = pw.chromium.connect_over_cdp(endpoint_url)
+    context = browser.contexts[0]
+    context.set_default_timeout(30000)
+    page = context.pages[0]
+    page.goto(base_url, timeout=30000, wait_until="domcontentloaded")
+    sb.sleep(5)
+    page.get_by_test_id("pagination-button-next").click()
+    sb.sleep(2)
+    cookie_button = page.get_by_role("button", name="Alle akzeptieren")
+    if cookie_button.count() > 0:
+        cookie_button.click()
+        sb.sleep(2)
+    return page
 ```
 
 ### Browser initialisieren & Startseite laden
