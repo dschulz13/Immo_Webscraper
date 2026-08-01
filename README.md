@@ -312,60 +312,228 @@ def neustart_browser(page, base_url, pw, sb):
 ### Browser initialisieren & Startseite laden
 
 ```
-driver = webdriver.Firefox()
-driver.maximize_window()
-driver.set_page_load_timeout(30)
-base_url = "https://www.immobilienscout24.de/Suche/de/nordrhein-westfalen/paderborn-kreis/haus-kaufen?sorting=2&enteredFrom=result_list"
-driver.get(base_url)
+sb = sb_cdp.Chrome()
+endpoint_url = sb.get_endpoint_url()
+# Aktualisiere den Dateipfad
+file_path = 'C:/Users/UserName/Documents/Immobiliendaten/Datensatz_ImmoScout24_KreisPaderborn20260801'
+base_url = 'https://www.immobilienscout24.de/Suche/de/nordrhein-westfalen/paderborn-kreis/haus-kaufen?enteredFrom=one_step_search'
 ```
 
-Nach `driver.get(base_url)` müsste vermutlich im Browser die CAPTCHA manuell gelöst werden. In dem sich anschließend öffnenden Fenster sollte vermutlich das Cookie-Fenster manuell geschlossen werden. Erst dann sollte mit dem folgenden Code fortgefahren werden.
+Durch diesen Ansatz wird kein reCAPCTHA zu lösen sein.
+
+### Leere Listen
+
+```
+# Leere Listen, die zu füllen sind
+URLS = []
+neubau = []
+titel = []
+adresse = []
+kaufpreis_gesamt = []
+kaufpreis_pro_qm = []
+wohnflaeche_in_qm = []
+grundstuecksflaeche_in_qm = []
+keller_existiert = []
+anzahl_zimmer = []
+anzahl_badezimmer = []
+anzahl_schlafzimmer = []
+anzahl_etagen = []
+autostellplaetze = []
+haustyp = []
+maklerprovision = []
+baujahr = []
+objektzustand = []
+ausstattungsquali = []
+heizungsart = []
+energietraeger = []
+energieausweis_vorliegend = []
+typ_energieausweis = []
+endenergiebedarf = []
+energieklasse = []
+text_objektbeschreibung = []
+text_ausstattung = []
+text_lage = []
+veroeffentlichungsdatum = []
+download_zeit = []
+```
 
 ### Herunterladen der Daten
 
 ```
-# Leerer Dataframe
-df = pd.DataFrame(columns = ['Titel', 'Adresse', 'Kaufpreis_Gesamt', 'Kaufpreis_pro_QM', 'Wohnflaeche_in_QM',
-       'Grundstuecksflaeche_in_QM', 'Keller_existiert', 'Anzahl_Zimmer',
-       'Anzahl_Badezimmer', 'Anzahl_Schlafzimmer', 'Anzahl_Etagen', 
-       'Anzahl_Autostellplaetze', 'Haustyp',
-       'Maklerprovision', 'Baujahr', 'Objektzustand', 'Ausstattungsqualitaet',
-       'Heizungsart', 'Wesentliche_Energietraeger',
-       'Energieausweis_vorliegend', 'Typ_Energieausweis', 'Endenergiebedarf',
-       'Energieklasse', 'Text_Objektbeschreibung', 'Text_Ausstattung',
-       'Text_Lage', 'URL', 'Bauprojekt', 'Veroeffentlichungsdatum', 'Download_Zeit'])
-
-# Fülle den Dataframe
 i = 0
-j = 0
-while i < 1:
-    j += 1
-    print('Seite ' + str(j) + '\n')
-    curr_url = driver.current_url
-    try:
-        df = fuege_suchseiteninfos_hinzu(driver, df)
-        driver.get(curr_url)
-        time.sleep(1 + unif(1, 2))
-        nxt_button = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//button[@data-testid='pagination-button-next']"))
-        )
-        next_button_disab = driver.find_element(By.XPATH, "//button[@data-testid='pagination-button-next']").get_attribute("aria-disabled")
+with sync_playwright() as p:
+    browser = p.chromium.connect_over_cdp(endpoint_url)
+    context = browser.contexts[0]
+    context.set_default_timeout(30000)
+    page = context.pages[0]
+    page.goto(base_url, timeout=30000, wait_until="domcontentloaded")
+    sb.sleep(5)
+    page.get_by_test_id("pagination-button-next").click()
+    sb.sleep(2)
+    cookie_button = page.get_by_role("button", name="Alle akzeptieren")
+    if cookie_button.count() > 0:
+        cookie_button.click()  # Cookie-Fenster schließen
+    sb.sleep(1)
+    page.get_by_test_id("pagination-button-prev").click()
+    sb.sleep(1)
+    while i == 0:
+        sammle_SuchURLs(page, URLS, neubau)    # Erweitert URLS-Objekt
+        next_button_disab = page.locator("xpath=//button[@data-testid='pagination-button-next']").get_attribute("aria-disabled")
+        if next_button_disab == "true":
+            print('URLs erfolgreich gesammelt')
+            break      
+        page.get_by_test_id("pagination-button-next").click()
+        #sb.sleep(1 + unif(1, 2, 1).item())
+        sb.sleep(1)
+        
+    # Passe URLs an, behalte nur einzigartige URLs, und entferne auch entsprechend
+    # Hausbau-Einträge bei URL-Dopplungen    
+    URLS = ['https://www.immobilienscout24.de' + url for sublist in URLS for url in sublist]
+    neubau = [item for sublist in neubau for item in sublist]
+
+    URLS_final = list()
+    neubau_final = list()
+
+    for s_url, s_nb in zip(URLS, neubau):
+        if s_url not in URLS_final:
+            URLS_final.append(s_url)
+            neubau_final.append(s_nb)
+    
+    try:   # Starte Browser neu
+        page = neustart_browser(page = page, base_url = base_url, pw = p, sb = sb)
     except:
-        print('Prozess vorzeitig gestoppt')
-        break
-    if next_button_disab == "true":
-        print('Prozess regulär gestoppt')
-        break
-    nxt_button.click()
-    time.sleep(10 + unif(1, 2))
-    elems = WebDriverWait(driver, 10).until(
-        EC.presence_of_all_elements_located((By.XPATH, "//div[@data-elementtype = 'hybridViewCardContainer']//div[contains(@class, 'listing-card card-listing-')]"))
-    )
+        pass
+    
+    
+    # Gehe durch alle gespeicherten URLs und sammle Daten
+    j = 0
+    k = 1
+    
+    for url in URLS_final:
+        j += 1
+        success = False
+        retry_count = 0
+        
+        while not success and retry_count < 3:
+            
+            try:
+                page.goto(url, timeout=30000, wait_until="domcontentloaded")
+                cookie_button = page.get_by_role("button", name="Alle akzeptieren")
+                if cookie_button.count() > 0:
+                    cookie_button.click()
+                print(j)
+                sb.sleep(1.5)
+                #sb.sleep(1.5 + unif(0, 1, 1).item())   # Anpassen, z.B. bei langsamerer Internetverbindung
+                #zusatz_warten = unif(0, 1, 1).item()
+                #if (zusatz_warten < 0.05):
+                #    sb.sleep(3)
+                sammle_alle_groessen(page, titel, adresse, kaufpreis_gesamt, kaufpreis_pro_qm,
+                                 wohnflaeche_in_qm, grundstuecksflaeche_in_qm,
+                                 keller_existiert, anzahl_zimmer, anzahl_badezimmer,
+                                 anzahl_schlafzimmer, anzahl_etagen,
+                                 autostellplaetze, haustyp, maklerprovision,
+                                 baujahr, objektzustand, ausstattungsquali,
+                                 heizungsart, energietraeger,
+                                 energieausweis_vorliegend, typ_energieausweis,
+                                 endenergiebedarf, energieklasse,
+                                 text_objektbeschreibung, text_ausstattung,
+                                 text_lage, veroeffentlichungsdatum,
+                                 download_zeit)
+                success = True
+            
+            except PlaywrightTimeoutError:
+                retry_count += 1
+                
+                try:
+                    page = neustart_browser(page = page, base_url = base_url, pw = p, sb = sb)
+                except:
+                    pass
+                next
+            
+            if j % 300 == 0:
+
+                df = pd.DataFrame({
+                    'Titel': titel,
+                    'Adresse': adresse,
+                    'Kaufpreis_Gesamt': kaufpreis_gesamt,
+                    'Kaufpreis_pro_QM': kaufpreis_pro_qm,
+                    'Wohnflaeche_in_QM': wohnflaeche_in_qm,
+                    'Grundstuecksflaeche_in_QM': grundstuecksflaeche_in_qm,
+                    'Keller_existiert': keller_existiert,
+                    'Anzahl_Zimmer': anzahl_zimmer,
+                    'Anzahl_Badezimmer': anzahl_badezimmer,
+                    'Anzahl_Schlafzimmer': anzahl_schlafzimmer,
+                    'Anzahl_Etagen': anzahl_etagen,
+                    'Anzahl_Autostellplaetze': autostellplaetze,
+                    'Haustyp': haustyp,
+                    'Maklerprovision': maklerprovision,
+                    'Baujahr': baujahr,
+                    'Objektzustand': objektzustand,
+                    'Ausstattungsqualitaet': ausstattungsquali,
+                    'Heizungsart': heizungsart,
+                    'Wesentliche_Energietraeger': energietraeger,
+                    'Energieausweis_vorliegend': energieausweis_vorliegend,
+                    'Typ_Energieausweis': typ_energieausweis,
+                    'Endenergiebedarf': endenergiebedarf,
+                    'Energieklasse': energieklasse,
+                    'Text_Objektbeschreibung': text_objektbeschreibung,
+                    'Text_Ausstattung': text_ausstattung,
+                    'Text_Lage': text_lage,            
+                    'URL': URLS_final[0:j],
+                    'Bauprojekt': neubau_final[0:j],
+                    'Veroeffentlichungsdatum': veroeffentlichungsdatum,
+                    'Download_Zeit': download_zeit
+                })
+
+                file_nam = file_path + 'Set' + str(k) + '.csv'
+                df.to_csv(file_nam, sep = '|', index = False)
+                print('Datensatz gespeichert bis Index ' + str(j) + '!')
+                k += 1
+                page = neustart_browser(page = page, base_url = base_url, pw = p, sb = sb)
+    page.close()   # Schließe Browser final
+    try:
+        browser.close()
+    except:
+        pass
 ```
 
 ### Speichern des Datensatzes
 
 ```
-path_for_saving = ''  # Ersetze durch den Pfad, an dem die Daten gespeichert werden sollen
-df.to_csv(path_for_saving, sep = '|', index = False)
+df = pd.DataFrame({
+        'Titel': titel,
+        'Adresse': adresse,
+        'Kaufpreis_Gesamt': kaufpreis_gesamt,
+        'Kaufpreis_pro_QM': kaufpreis_pro_qm,
+        'Wohnflaeche_in_QM': wohnflaeche_in_qm,
+        'Grundstuecksflaeche_in_QM': grundstuecksflaeche_in_qm,
+        'Keller_existiert': keller_existiert,
+        'Anzahl_Zimmer': anzahl_zimmer,
+        'Anzahl_Badezimmer': anzahl_badezimmer,
+        'Anzahl_Schlafzimmer': anzahl_schlafzimmer,
+        'Anzahl_Etagen': anzahl_etagen,
+        'Anzahl_Autostellplaetze': autostellplaetze,
+        'Haustyp': haustyp,
+        'Maklerprovision': maklerprovision,
+        'Baujahr': baujahr,
+        'Objektzustand': objektzustand,
+        'Ausstattungsqualitaet': ausstattungsquali,
+        'Heizungsart': heizungsart,
+        'Wesentliche_Energietraeger': energietraeger,
+        'Energieausweis_vorliegend': energieausweis_vorliegend,
+        'Typ_Energieausweis': typ_energieausweis,
+        'Endenergiebedarf': endenergiebedarf,
+        'Energieklasse': energieklasse,
+        'Text_Objektbeschreibung': text_objektbeschreibung,
+        'Text_Ausstattung': text_ausstattung,
+        'Text_Lage': text_lage,            
+        'URL': URLS_final,
+        'Bauprojekt': neubau_final,
+        'Veroeffentlichungsdatum': veroeffentlichungsdatum,
+        'Download_Zeit': download_zeit
+    })
+
+file_nam = file_path + 'Total.csv'
+df.to_csv(file_nam, sep = '|', index = False)
+print('Vollständiger Datensatz gespeichert!')
 ```
