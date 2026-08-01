@@ -362,20 +362,24 @@ download_zeit = []
 ```
 i = 0
 with sync_playwright() as p:
+    # Starte Browser
     browser = p.chromium.connect_over_cdp(endpoint_url)
     context = browser.contexts[0]
     context.set_default_timeout(30000)
+    # Lade Seite
     page = context.pages[0]
     page.goto(base_url, timeout=30000, wait_until="domcontentloaded")
     sb.sleep(5)
     page.get_by_test_id("pagination-button-next").click()
     sb.sleep(2)
+    # Klicke den Cookie-Button
     cookie_button = page.get_by_role("button", name="Alle akzeptieren")
     if cookie_button.count() > 0:
         cookie_button.click()  # Cookie-Fenster schließen
     sb.sleep(1)
     page.get_by_test_id("pagination-button-prev").click()
     sb.sleep(1)
+    # Sammle URLs und Infos zu Neubau
     while i == 0:
         sammle_SuchURLs(page, URLS, neubau)    # Erweitert URLS-Objekt
         next_button_disab = page.locator("xpath=//button[@data-testid='pagination-button-next']").get_attribute("aria-disabled")
@@ -413,9 +417,10 @@ with sync_playwright() as p:
         j += 1
         success = False
         retry_count = 0
-        
+
+        # Mit Failback-While-Schleife, um erneut zu versuchen
         while not success and retry_count < 3:
-            
+            # Versuche, zu Seite zu gehen und Daten zu sammeln
             try:
                 page.goto(url, timeout=30000, wait_until="domcontentloaded")
                 cookie_button = page.get_by_role("button", name="Alle akzeptieren")
@@ -441,16 +446,16 @@ with sync_playwright() as p:
                                  download_zeit)
                 success = True
             
-            except PlaywrightTimeoutError:
+            except PlaywrightTimeoutError:   # Bei Timeout, bersuche erneut
                 retry_count += 1
                 
-                try:
+                try:   # Lade dafür Browser neu zur Sicherheit
                     page = neustart_browser(page = page, base_url = base_url, pw = p, sb = sb)
                 except:
                     pass
                 next
             
-            if j % 300 == 0:
+            if j % 300 == 0:    # Nach 300 Datenpunkten, speichere bisherige Daten und starte Browser neu
 
                 df = pd.DataFrame({
                     'Titel': titel,
