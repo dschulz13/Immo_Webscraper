@@ -5,7 +5,7 @@ Schreibt einen auf Pythons Playwright basierenden Bot, um Daten zu zum Verkauf s
 Wir schreiben Code, um Pythons Paket `playwright` zu nutzen, um einen Chrome-Browser manuell durch die Suchliste von ImmobilienScout24 zu navigieren, Seiten zu Immobilien nacheinander zu öffnen und die Verkaufsdaten in einem `pandas` dataframe zu speichern. Als Beispiel nutzen wir hier die Suchergebnisse der zum Verkauf stehenden Häuser im Kreis Paderborn in Nordrhein-Westfalen (sortiert von den neuesten Einträgen zu den ältesten), jedoch kann der Code theoretisch für andere Suchen genutzt werden.
 
 ## Hinweise vorweg
-ImmobilienScout24 nutzt Anti-Bot-Software, um botgesteuerte Browser zu erkennen und Scraping-Versuche entweder zu verlangsamen oder auch mit CAPTCHAs zu unterbrechen. Aus diesem Grund nutzen wir einen durch `seleniumbase` gestarteten Stealth-Browser, den wir dann mit `playwright` steuern. Dadurch tauchen keine CAPTCHAs bei Ansteuern der Seite auf.
+ImmobilienScout24 nutzt Anti-Bot-Software, um botgesteuerte Browser zu erkennen und Scraping-Versuche entweder zu verlangsamen oder auch mit CAPTCHAs zu unterbrechen. Aus diesem Grund nutzen wir einen durch `seleniumbase` gestarteten Stealth-Browser, den wir dann mit `playwright` steuern. Dadurch tauchen keine reCAPTCHAs bei Ansteuern der Seite auf. Es ist anzumerken, dass manche Werbseiten in regelmäßigen Abständen HTML-Tags verändern, um dadurch zusätzlich Webscraping vorzubeugen. Daher ist der folgende Code nur eine Momentaufnahme und muss ggf. von Zeit zu Zeit angepasst werden.
 
 ## Code
 
